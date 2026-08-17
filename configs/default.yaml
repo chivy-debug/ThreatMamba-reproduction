@@ -1,0 +1,77 @@
+# ThreatMAMBA reproduction - hyper-parameters locked to Table V of the paper.
+model:
+  gat_dim: 48
+  ssm_dim: 48
+  gat_heads: 4
+  ssm_heads: 4
+  gat_layers: 3
+  ssm_layers: 3
+  dropout: 0.1
+  ssm_fallback: auto     # auto|mamba|simple - "simple" is the pure-PyTorch fallback
+train:
+  optimizer: adam
+  lr: 1.0e-4
+  epochs: 100
+  batch_size: 16
+  valid_split: 0.1
+  # Early stopping: a patience of 5 is far too short. Validation macro-F1 over ~250 samples
+  # and 20 classes is very noisy, so on the first run the 'main' model hit a lucky record at
+  # epoch 2 and stopped at epoch 7, while the no_cl ablation ran 41 epochs - which makes the
+  # comparison table meaningless. min_epochs prevents stopping too early.
+  early_stopping_patience: 10
+  min_epochs: 20
+  # Checkpoint selection criterion: balanced_acc | micro | macro | loss.
+  # balanced_acc = macro recall: it still weights rare classes (matching the macro-F1
+  # acceptance target) but is smoother than macro-F1, because there is no precision term
+  # collapsing to 0 when a class is never predicted.
+  select_metric: balanced_acc
+  cl_lambda: 0.1        # lambda in Eq. 18. The paper does not state it; grid {0.1, 0.5, 1.0}.
+                        # 1.0 lets CL swamp BCE: InfoNCE starts near ln(K+1)=1.61 vs BCE ~0.35.
+  cl_temperature: 0.5   # tau in Eq. 20. Not stated in the paper; grid {0.1, 0.5}.
+  cl_pairs_K: 4         # CL pairs per anchor. Not stated in the paper; 4 is the starting point.
+  cl_warmup_epochs: 5   # run BCE only for this many epochs before enabling CL
+  cl_noise_std: 0.05    # Eq. 7: Gaussian feature noise (positive view)
+  cl_edge_drop: 0.1     # Eq. 7: Bernoulli edge mask (positive view)
+ttp:                    # Stage 3 - TTP extraction module (Eq. 2-5)
+  d_model: 256          # specific to the TTP module. The 48 in Table V is the Stage 5
+                        # classifier width; projecting 768 -> 48 and then discriminating
+                        # 347 labels is far too tight.
+  ssm_layers: 3
+  batch_size: 32
+  lr: 3.0e-4            # higher than the classifier's 1e-4; this module converges slowly
+  max_sents: 128
+  min_label_pos: 5      # drop label columns with fewer than 5 positive samples
+  pos_weight_cap: 50    # cap on pos_weight in BCE (D1 is very sparse: 0.88% positive)
+  accept_tactics_f1: 0.70   # Stage 3 acceptance threshold
+  # Stage 4 calls TTP extraction PER SENTENCE (matching the training distribution). The two
+  # caps below keep the CSKG from ballooning:
+  max_ttps_per_sent: 5      # TTPs kept per sentence
+  max_ttps_per_doc: 40      # TTPs kept per document (highest probability first)
+  # There is no fixed 'threshold' any more: thresholds are TUNED ON THE VALIDATION SET at
+  # training time and stored in the checkpoint.
+data:
+  min_docs_per_group: 30
+  train_test_ratio: 0.8
+  min_doc_chars: 200
+  seed: 42
+  attck_version: v14
+iochunter:
+  llm: qwen3:8b          # the paper uses DeepSeek-R1-70B; 8B is what fits in 16 GB VRAM
+  max_rounds: 5          # T_try in Algorithm 1
+  max_seeds_per_doc: 12  # IOCs looked up per document, after benign filtering
+  top_k_methods: 50      # Algorithm 1 line 21: top k=50 methods after ranking by Eq. 1
+  select_score_min: 50   # LLM Score threshold when SELECTING (IOC, method) pairs;
+                         # Fig. 2 uses a 0-100 scale
+  post_screen: true      # additionally screen the candidates the APIs return
+                         # (an EXTENSION; not part of the paper)
+  accept_score: 6        # threshold for the post_screen step (0-10 scale)
+  vt_sleep_seconds: 15   # 4 requests per minute
+  vt_daily_quota: 480    # below 500 to leave headroom
+  max_llm_retries: 3
+eval:
+  robustness_keep: [0.2, 0.4, 0.6, 0.8, 1.0]   # Table VIII: keep [0, k%] of the timeline
+  # Number of TTPs per group when comparing against ATT&CK (Eq. 28-29). Table XI of the
+  # paper shows |T_M| for ThreatMAMBA is 63-94 TTPs per group. Leaving this at 20 drops
+  # recall to ~17% (the paper reports ~76%) and pulls Jaccard down to 0.13 instead of 0.30 -
+  # the bottleneck is RECALL, not precision.
+  explain_top_ttps: 90

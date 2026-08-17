@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APT Group Behavior Patterns</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: transparent;
+            
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: none;
+            padding: 6px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        #chart {
+            width: 100%;
+            height: __CHART_HEIGHT__px;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            color: #1976d2;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        
+        <div id="chart"></div>
+    </div>
+
+    <script>
+        const chart = echarts.init(document.getElementById('chart'));
+
+        const ttp_state_data = JSON.parse('__GRAPH_DATA__')
+
+        const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', "grey"]
+
+        // 使用 force 布局，让节点自动排列
+        const nodes = ttp_state_data["nodes"];
+
+        const links = ttp_state_data["edges"];
+
+        // 创建饼图纹理
+        function createPieTexture(nodeData) {
+            const padding = 50; // 外部标签的边距
+            const size = nodeData.symbolSize * 5 + padding * 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = nodeData.symbolSize * 2 - 5 > 5? nodeData.symbolSize * 2 - 5: 5;
+            const fontsize = parseInt(nodeData.symbolSize / 3);
+            
+            const total = nodeData.pieData.reduce((sum, item) => sum + item.value, 0);
+            let startAngle = -Math.PI / 2;
+            
+            // 先绘制所有扇区
+            nodeData.pieData.forEach((item, index) => {
+                const sliceAngle = (item.value / total) * 2 * Math.PI;
+                const endAngle = startAngle + sliceAngle;
+                
+                // 绘制扇区
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[index % colors.length];
+                ctx.fill();
+                
+                startAngle = endAngle;
+            });
+            
+            // 重新计算角度绘制标签
+            startAngle = -Math.PI / 2;
+            nodeData.pieData.forEach((item, index) => {
+                const sliceAngle = (item.value / total) * 2 * Math.PI;
+                const midAngle = startAngle + sliceAngle / 2;
+                const percentage = (item.value / total * 100).toFixed(0);
+                
+                // 计算标签位置
+                let labelX, labelY, innerLabel;
+                
+                // 根据扇区大小决定标签显示在内部还是外部
+                if (percentage >= 40 && sliceAngle >= Math.PI / 2.5) {
+                    // 大扇区：显示在内部
+                    innerLabel = true;
+                    const labelRadius = radius * 0.5;
+                    labelX = centerX + Math.cos(midAngle) * labelRadius;
+                    labelY = centerY + Math.sin(midAngle) * labelRadius;
+                } else {
+                    // 小扇区：显示在外部
+                    innerLabel = false;
+                    const labelRadius = radius + 60;
+                    labelX = centerX + Math.cos(midAngle) * labelRadius;
+                    labelY = centerY + Math.sin(midAngle) * labelRadius;
+                }
+                
+                // 设置文字样式
+                ctx.save();
+                ctx.font = 'bold '+fontsize+'px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                const labelText = `${item.name}\n${percentage}%`;
+                const lines = labelText.split('\n');
+                const lineHeight = fontsize + 3;
+                const totalHeight = lines.length * lineHeight;
+                
+                // 测量文字宽度
+                const maxLineWidth = Math.max(
+                    ctx.measureText(lines[0]).width,
+                    ctx.measureText(lines[1] || '').width
+                );
+                
+                // 绘制白色背景/边框（提高可读性）
+                ctx.fillStyle = 'white';
+                const textWidth = maxLineWidth + 6;
+                const bgHeight = totalHeight + 4;
+                
+                // 绘制黑色文字
+                ctx.fillStyle = 'black';
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, labelX, labelY - totalHeight / 2 + lineHeight / 2 + i * lineHeight);
+                });
+                
+                ctx.restore();
+                
+                startAngle += sliceAngle;
+            });
+            
+            // 添加中心文字（节点名称）
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius * 0.3, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.fill();
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold '+fontsize+'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(nodeData.name, centerX, centerY);
+            
+            return canvas.toDataURL('image/png');
+        }
+
+        // 为饼图节点生成纹理
+        const processedNodes = nodes.map(node => {
+            if (node.isPie) {
+                const pieImage = createPieTexture(node);
+                return {
+                    ...node,
+                    symbol: 'image://' + pieImage,
+                    itemStyle: {
+                        color: 'transparent'
+                    }
+                };
+            }
+            return {
+                ...node,
+                // symbol: 'circle',
+                label: {
+                    show: true,
+                    position: 'bottom',
+                    fontSize: 12,
+                    color: '#333'
+                }
+            };
+        });
+
+        const option = {
+            tooltip: {
+                trigger: 'item',
+                formatter: function (params) {
+                    if (params.data.isPie) {
+                        let html = `<strong>${params.data.name}</strong><br/>`;
+                        params.data.pieData.forEach(item => {
+                            html += `${item.name}: ${item.value}%<br/>`;
+                        });
+                        return html;
+                    }
+                    return params.data.name;
+                }
+            },
+            series: [
+                {
+                    type: 'graph',
+                    layout: 'force',
+                    force: {
+                        repulsion: 300,
+                        edgeLength: 200,
+                        gravity: 0.1
+                    },
+                    data: processedNodes,
+                    links: links,
+                    lineStyle: {
+                        color: '#999',
+                        width: 2,
+                        curveness: 0.1
+                    },
+                    edgeSymbol: ['none', 'arrow'],
+                    edgeSymbolSize: [0, 8],
+                    roam: true,
+                    draggable: true,
+                    label: {
+                        show: true,
+                        position: 'bottom',
+                        fontSize: 12,
+                        color: '#333',
+                        fontWeight: 'bold'
+                    },
+                    emphasis: {
+                        scale: 1.2,
+                        label: {
+                            show: true
+                        }
+                    }
+                }
+            ]
+        };
+
+        chart.setOption(option);
+
+        window.addEventListener('resize', () => {
+            chart.resize();
+        });
+
+        chart.on('click', function (params) {
+            if (params.data && params.data.isPie) {
+                console.log('饼图节点:', params.data.name);
+                console.log('数据分布:', params.data.pieData);
+            }
+        });
+    </script>
+</body>
+
+</html>

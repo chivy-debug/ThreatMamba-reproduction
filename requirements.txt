@@ -1,0 +1,29 @@
+# ==================== ThreatMAMBA reproduction ====================
+# NOTE: torch / causal-conv1d / mamba-ssm are deliberately NOT listed here.
+# They must be installed in a specific order - use scripts/setup_env.sh
+# (or follow the installation section of README.md).
+# ==================================================================
+
+# ---- Stage 0 ----
+transformers>=4.44,<5
+requests>=2.31
+python-dotenv>=1.0
+pyyaml>=6.0
+numpy
+pandas
+tqdm
+
+# ---- used from Stage 1-2 onwards (installing early is harmless) ----
+ioc-finder>=7.0
+mitreattack-python>=3.0
+openpyxl
+
+einops
+
+# ---- Stage 3-6 ----
+scikit-learn
+matplotlib
+networkx
+
+# ---- Stage 7 (demo UI) ----
+streamlit

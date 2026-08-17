@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: ThreatMamba reproduction
+message: >-
+  If you use this software, please cite both this repository and the original
+  ThreatMAMBA paper listed under references.
+type: software
+license: MIT
+repository-code: "https://github.com/<your-username>/threatmamba-repro"
+abstract: >-
+  An open reproduction of the ThreatMAMBA pipeline for cyber threat attribution:
+  IOC/TTP extraction from CTI reports, construction of a 19-node-type cybersecurity
+  knowledge graph, and a relational GAT + MAMBA classifier, with MITRE ATT&CK based
+  explanations and a Streamlit demo UI.
+keywords:
+  - cyber threat intelligence
+  - threat attribution
+  - knowledge graph
+  - state space model
+  - MITRE ATT&CK
+references:
+  - type: article
+    title: "ThreatMAMBA"
+    journal: "IEEE Transactions on Information Forensics and Security"
+    year: 2026
+    doi: "10.1109/TIFS.2026.3685967"
