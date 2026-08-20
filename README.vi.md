@@ -135,7 +135,7 @@ trên RTX 5060 Ti 16 GB, Blackwell `sm_120`), khoảng 25 GB trống. Linux thu�
 Cần tài khoản miễn phí của VirusTotal và AlienVault OTX; RapidDNS không cần key.
 
 ```bash
-git clone https://github.com/<tên-tài-khoản>/threatmamba-repro
+git clone https://github.com/Deja-Vyx/threatmamba-repro
 cd threatmamba-repro
 bash scripts/setup_env.sh
 ```
