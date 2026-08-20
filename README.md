@@ -135,7 +135,7 @@ Sandworm Team, Tick → BRONZE BUTLER, Waterbug → Turla, MageCart → FIN6.
 works too. Free accounts are needed for VirusTotal and AlienVault OTX; RapidDNS needs none.
 
 ```bash
-git clone https://github.com/chivy-debug/threatmamba-reproduction
+git clone https://github.com/Deja-Vyx/threatmamba-reproduction
 cd threatmamba-repro
 bash scripts/setup_env.sh
 ```
